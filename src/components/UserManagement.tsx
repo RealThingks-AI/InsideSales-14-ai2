@@ -393,9 +393,9 @@ const UserManagement = () => {
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 
-                <div className="relative w-72">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  <Input placeholder="Search users by name or email..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+                <div className="relative w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input placeholder="Search users..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" inputSize="control" />
                 </div>
               </div>
             </CardHeader>
@@ -460,10 +460,10 @@ const UserManagement = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'M/d/yyyy') : '—'}
+                        {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'dd/MM/yyyy') : '—'}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(user.created_at), 'M/d/yyyy')}
+                        {format(new Date(user.created_at), 'dd/MM/yyyy')}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">

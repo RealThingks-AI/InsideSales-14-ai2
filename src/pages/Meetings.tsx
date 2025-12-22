@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Video, Trash2, Edit, Calendar, ArrowUpDown, ArrowUp, ArrowDown, List, CalendarDays, CheckCircle2, AlertCircle, UserX, CalendarClock, BarChart3 } from "lucide-react";
+import { Plus, Search, Video, Trash2, Edit, Calendar, ArrowUpDown, ArrowUp, ArrowDown, List, CalendarDays, CheckCircle2, AlertCircle, UserX, CalendarClock } from "lucide-react";
 import { MeetingsCalendarView } from "@/components/meetings/MeetingsCalendarView";
-import { MeetingAnalyticsDashboard } from "@/components/meetings/MeetingAnalyticsDashboard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MeetingModal } from "@/components/MeetingModal";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -55,7 +54,7 @@ const Meetings = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortColumn, setSortColumn] = useState<SortColumn>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [viewMode, setViewMode] = useState<'table' | 'calendar' | 'analytics'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const fetchMeetings = async () => {
     try {
       setLoading(true);
@@ -286,10 +285,6 @@ const Meetings = () => {
                   <CalendarDays className="h-3.5 w-3.5" />
                   Calendar
                 </Button>
-                <Button variant={viewMode === 'analytics' ? 'secondary' : 'ghost'} size="sm" onClick={() => setViewMode('analytics')} className="gap-1.5 h-8 px-2.5 text-xs">
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Analytics
-                </Button>
               </div>
               
               <Button size="sm" onClick={() => {
@@ -305,15 +300,15 @@ const Meetings = () => {
 
       {/* Main Content */}
       <div className="flex-1 min-h-0 overflow-auto p-6">
-        {viewMode === 'analytics' ? <MeetingAnalyticsDashboard /> : viewMode === 'calendar' ? <MeetingsCalendarView meetings={filteredMeetings} onMeetingClick={meeting => {
+        {viewMode === 'calendar' ? <MeetingsCalendarView meetings={filteredMeetings} onMeetingClick={meeting => {
         setEditingMeeting(meeting);
         setShowModal(true);
       }} onMeetingUpdated={fetchMeetings} /> : <div className="space-y-4">
             {/* Search and Bulk Actions */}
             <div className="flex items-center gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search meetings..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search meetings..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9" inputSize="control" />
               </div>
               
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -394,7 +389,7 @@ const Meetings = () => {
                         </TableCell>
                         <TableCell className="font-medium">{meeting.subject}</TableCell>
                         <TableCell className="text-sm">
-                          {format(new Date(meeting.start_time), 'MMM dd, yyyy')}
+                          {format(new Date(meeting.start_time), 'dd/MM/yyyy')}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {format(new Date(meeting.start_time), 'HH:mm')} - {format(new Date(meeting.end_time), 'HH:mm')}
