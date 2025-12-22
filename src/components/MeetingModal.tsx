@@ -762,7 +762,7 @@ export const MeetingModal = ({ open, onOpenChange, meeting, onSuccess }: Meeting
                       <SelectItem value="none" className="text-xs">None</SelectItem>
                       {leads.map((lead) => (
                         <SelectItem key={lead.id} value={lead.id} className="text-xs">
-                          {lead.lead_name}
+                          {lead.lead_name}{lead.email ? ` (${lead.email})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -779,7 +779,7 @@ export const MeetingModal = ({ open, onOpenChange, meeting, onSuccess }: Meeting
                       <SelectItem value="none" className="text-xs">None</SelectItem>
                       {contacts.map((contact) => (
                         <SelectItem key={contact.id} value={contact.id} className="text-xs">
-                          {contact.contact_name}
+                          {contact.contact_name}{contact.email ? ` (${contact.email})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
