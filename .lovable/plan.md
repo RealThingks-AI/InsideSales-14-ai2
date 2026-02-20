@@ -1,94 +1,86 @@
 
-# Stakeholder Contacts - Multiple Contacts Per Role with Info Button
+## Stakeholders Section – Full Layout Redesign
 
-## Overview
-Update the stakeholders section to support multiple contacts per role (Budget Owner, Champion, Influencer, Objector) and add an info (i) button next to each contact for adding role-specific notes. Layout will be a 2x2 grid matching the reference image.
+### Reference Image Analysis
 
-## Database Changes
-
-### 1. New Junction Table: `deal_stakeholders`
-Replaces the single-contact foreign key columns with a many-to-many relationship.
+The image defines a precise column layout for each of the 2 stakeholder columns (50% of total width each):
 
 ```text
-deal_stakeholders
------------------
-id              uuid (PK, default gen_random_uuid())
-deal_id         uuid (NOT NULL, references deals.id ON DELETE CASCADE)
-contact_id      uuid (NOT NULL, references contacts.id ON DELETE CASCADE)
-role            text (NOT NULL) -- 'budget_owner', 'champion', 'influencer', 'objector'
-note            text (nullable) -- role-specific notes about this contact for this deal
-created_at      timestamptz (default now())
-created_by      uuid (nullable)
-
-UNIQUE(deal_id, contact_id, role)  -- prevent duplicate assignments
+|-- 14% Label --|-- 30% Contact Name(s) --|-- 3% info --|-- 3% + --|
 ```
 
-### 2. RLS Policies for `deal_stakeholders`
-- SELECT: all authenticated users (matches deals visibility)
-- INSERT: authenticated users (`created_by = auth.uid()`)
-- UPDATE: creator or admin
-- DELETE: creator or admin
+- **Label** (14%): "Budget Owner", "Champion", etc. — fixed, vertically top-aligned
+- **Contact Names** (30%): stacked vertically, one per row, each truncated
+- **Info button** (3%): one `i` button per contact, stacked alongside the contact name — appears/disappears per row
+- **+ Add button** (3%): a single `+` icon button, appears on the **first row** only (top-right), opens a dropdown of 40% width
 
-### 3. Data Migration
-Migrate existing data from the 4 single-column fields (`budget_owner_contact_id`, `champion_contact_id`, etc.) into the new junction table so no data is lost.
+Key observations:
+- The `+` button does **NOT** shift for each contact — it's fixed at top-right of the role block
+- Each contact row is: `[contact name (30%)] [i button (3%)]`
+- The `+` column (3%) is separate and sits on the right, aligned to the top
+- When no contacts: label + empty space + `+` button
 
-## Frontend Changes
+### Implementation Plan
 
-### File: `src/components/DealExpandedPanel.tsx` - StakeholdersSection
+**File: `src/components/DealExpandedPanel.tsx`** — rewrite `StakeholdersSection` (lines 257–310)
 
-**Current behavior:** Each role shows one contact badge or an "Add" dropdown.
+#### 1. Lift contacts fetch into `StakeholdersSection` (single fetch, shared across all 4 roles)
 
-**New behavior:**
-- Each role shows a list of selected contacts, each with:
-  - Contact name (fills available space)
-  - An `i` (Info) icon button that opens a Popover with a textarea to add/edit notes
-  - An `x` button to remove the contact
-- A "+ Add" button at the end to add more contacts
-- 2x2 grid layout: Budget Owner + Champion on row 1, Influencer + Objector on row 2
+Move the contacts data fetch from `ContactSearchableDropdown` (which fires 4 separate fetches) into `StakeholdersSection` state. Pass contacts down to the inline add-dropdown. This eliminates 3 redundant network requests.
 
-**Layout per role (matching reference image):**
+#### 2. Build an inline `StakeholderAddDropdown` sub-component
 
-```text
-Budget Owner : Contact 6 (i)    Champion  : Contact 1 (i) Contact 2 (i)
-Influencer   : Contact 8 (i)    Objector  : Contact 4 (i) Contact 3 (i)
+A small, self-contained Popover-based search dropdown defined inside `DealExpandedPanel.tsx`:
+- Trigger: a `+` icon button (no text, compact)
+- `PopoverContent` width: fixed pixel value derived from `ref` measurement of the row container × 0.40, so it's always exactly 40% of the available row width
+- Uses `Command` / `CommandInput` / `CommandList` for search (same pattern as `ContactSearchableDropdown`)
+- Accepts `contacts` and `excludeIds` (already-added contacts for this role) as props — filters them out
+- On select: calls `onAdd(role, contact)` and closes
+
+#### 3. Rewrite the role row layout
+
+Each role cell uses a strict 4-column flex layout:
+
+```tsx
+<div className="flex items-start">
+  {/* 14% — Label */}
+  <span style={{ width: '14%' }} className="shrink-0 ...">Budget Owner :</span>
+
+  {/* 30% — Contact names stacked vertically */}
+  <div style={{ width: '30%' }} className="flex flex-col gap-0.5 min-w-0">
+    {roleStakeholders.map(sh => (
+      <div key={sh.id} className="flex items-center">
+        <span className="truncate text-[10px]">{contactNames[sh.contact_id]}</span>
+      </div>
+    ))}
+  </div>
+
+  {/* 3% — Info buttons stacked vertically (one per contact) */}
+  <div style={{ width: '3%' }} className="flex flex-col gap-0.5 items-center">
+    {roleStakeholders.map(sh => (
+      <InfoPopover key={sh.id} stakeholder={sh} ... />
+    ))}
+  </div>
+
+  {/* 3% — Single + Add button at the top */}
+  <div style={{ width: '3%' }} className="flex items-start justify-center">
+    <StakeholderAddDropdown ... />
+  </div>
+</div>
 ```
 
-**State management changes:**
-- Replace single-value state (`budgetOwner`, `champion`, etc.) with arrays fetched from `deal_stakeholders`
-- Add note editing state (popover open per contact, note text)
-- Fetch stakeholders via query: `SELECT * FROM deal_stakeholders WHERE deal_id = ?`
-- Add/remove contacts via INSERT/DELETE on `deal_stakeholders`
-- Save notes via UPDATE on `deal_stakeholders`
+#### 4. Remove X (remove contact) from inline view
 
-### File: `src/types/deal.ts`
-No changes needed to the Deal interface -- the old single-contact fields remain in the type for backward compatibility but won't be used in the UI.
+The `X` remove button currently sits inside the contact chip. Per the reference image there is no `X` visible — removal can be accessed via the info popover or kept as a hover-only state to keep the layout clean. We'll add it as a hover-only element inside the contact name area.
 
-### File: `src/integrations/supabase/types.ts`
-This file auto-generates from the DB schema -- no manual edits.
+#### 5. Grid layout stays `grid-cols-2`
 
-## Technical Details
+The outer `grid grid-cols-2 gap-x-6 gap-y-2` is kept, giving each role cell exactly 50% width to work within.
 
-| Step | What | Where |
-|------|------|-------|
-| 1 | Create `deal_stakeholders` table with RLS | DB migration |
-| 2 | Migrate existing FK data to junction table | DB migration |
-| 3 | Rewrite `StakeholdersSection` component | `DealExpandedPanel.tsx` lines 178-246 |
-| 4 | Use `useQuery` to fetch stakeholders for the deal | Same component |
-| 5 | Add contact: INSERT into `deal_stakeholders` | Same component |
-| 6 | Remove contact: DELETE from `deal_stakeholders` | Same component |
-| 7 | Info button: Popover with Textarea, UPDATE note on blur/save | Same component |
+### Technical Details
 
-## UI Component Structure
-
-Each stakeholder role renders:
-1. Label (e.g., "Budget Owner :") -- fixed width
-2. Horizontal flex wrap of contact chips, each chip containing:
-   - Contact name text
-   - Info icon button (opens note popover)
-   - X icon button (removes contact)
-3. "+ Add" dropdown button (ContactSearchableDropdown) to add another contact
-
-The note popover will contain:
-- A `Textarea` for entering notes
-- Auto-saves on blur
-- Shows a small indicator if a note exists (filled info icon vs outline)
+- **Width percentages via `style` prop** — Tailwind percentage classes like `w-[14%]` work fine here but inline `style={{ width: '14%' }}` is more reliable inside flex containers. We'll use Tailwind `w-[14%]`, `w-[30%]`, `w-[3%]` classes which are JIT-safe.
+- **Dropdown width**: The `PopoverContent` for the add-dropdown will use `style={{ width: '200px' }}` as a sensible fixed minimum, plus `align="start"` so it doesn't overflow. Alternatively we measure the grid container via `useRef` — we'll use a ref for accuracy.
+- **Single contacts fetch**: Add `contacts` state + `loading` state to `StakeholdersSection`; pass the array to each `StakeholderAddDropdown`; each dropdown filters out contacts already in that role using `excludeIds`.
+- **Info popover**: Keep existing Popover note-editing behavior, just relocated to the 3% column, stacked per contact.
+- **X remove**: Show on hover of the contact name row using `group/row` and `group-hover/row:opacity-100 opacity-0` pattern.
